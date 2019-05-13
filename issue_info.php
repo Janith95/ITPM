@@ -216,8 +216,8 @@ th,td
         <?php
       }
     ?>
-      <?php
-
+      
+<?php
     //Calculate fine
 
      /* $i = 0;
@@ -226,8 +226,61 @@ th,td
 
       mysqli_query($db,"UPDATE  `issue_book` SET  `fine` =  , , `return` =  '$_POST[return]' WHERE username='$_SESSION[name]' and bid='$_SESSION[bid]';");
       $i++;
-        } */
+        } */ ?>
 
+<?php
+        function calculate_fines()
+{
+    $result1 = mysqli_query("SELECT * FROM issue_book;");
+    // for each loan id in book loans table update the fines table
+    while ($row1 = mysqli_fetch_array($result1)) {
+        $do_not_take_fine = 0;
+        //$loan_id = $row1{'Loan_id'};
+        $username = $row1['username'];
+        $issue = strtotime($row1['issue']);
+        $return = strtotime($row1['return']);
+        $days_diff = $issue - $return;
+        $days_past_due_date = floor($days_diff / (60 * 60 * 24));
+        if ($days_past_due_date > 0 || $row1['issue'] == '0000-00-00') {
+            //book is returned after due date, charge fine
+            //Fine Computation :-
+            $current_date = time();
+            $future_due_diff = $current_date - $due_date;
+            $future_due = floor($future_due_diff / (60 * 60 * 24));
+            if ($row1['issue'] == '0000-00-00' && $future_due > 0) {
+                // if book is not returned till today's date, and due date has passed
+                $diff = $current_date - $due_date;
+            } elseif ($row1['issue'] != '0000-00-00') {
+                // if book is returned but delayed from its due date
+                $diff = $issue - $return;
+            } else {
+                //if book is not returned till today, but due date has still not passed
+                //do nothing
+                $do_not_take_fine++;
+            }
+            $paid = 0;
+            $date_diff = floor($diff / (60 * 60 * 24));
+            $fine = $date_diff * 0.25;
+            //$result2 = mysql_query("SELECT * FROM FINES WHERE Loan_id = $loan_id");
+            $result2 = mysqli_query("SELECT * FROM issue_book WHERE username = $username");
+            // checking if this loan id is already there in fines table
+            if ($row2 = mysqli_fetch_array($result2)) {
+                // Already paid the fine. do nothing
+                // if not paid fine then update the fine table with new fine_amt
+                if ($row2['fine'] == 0 && $do_not_take_fine == 0) {
+                    $result3 = mysqli_query($db,"UPDATE 'issue_book' SET 'fine' = '$_POST[fine]' WHERE username ='$_SESSION[name]' and bid='$_SESSION[bid]';");
+                }
+            } else {
+                // this loan id is not present in fines table, it's a new entry, so use insert command
+                if ($do_not_take_fine == 0)
+                    $result3 = mysqli_query($db,"INSERT INTO issue_book VALUES($username, $fine, $paid);");
+            }
+        }
+        // else Borrower has returned by the due date so no charge is to be fined on the borrower.
+    }
+    echo "<br><br><br><br> Fines table is updated successfully !!!";
+}
+$dbhandle->close();
 
       ?>
       ?>
